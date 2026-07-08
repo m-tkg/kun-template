@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import KunAppKit
 import NewkunCore
 
 /// 設定ウィンドウ（SwiftUI の SettingsView を NSWindow にホストする）。
@@ -8,7 +9,8 @@ import NewkunCore
 final class SettingsWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private let viewModel: SettingsViewModel
-    private let loginItem = LoginItemController()
+    private let loginItem = LoginItemController(
+        requiresApprovalMessage: { L.string("login_item.requires_approval") })
 
     init(initialSettings: NewkunCore.Settings, onChange: @escaping (NewkunCore.Settings) -> Void) {
         self.viewModel = SettingsViewModel(settings: initialSettings, onChange: onChange)
