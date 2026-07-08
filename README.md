@@ -2,7 +2,11 @@
 
 kun シリーズ（macOS メニューバー常駐アプリ群）の新規開発用テンプレート。
 プレースホルダのアプリ名は **Newkun**（bundle ID `com.mtkg.newkun`）で、そのままビルド・起動できる。
-共通方針は `CLAUDE.md`（CLAUDE_base.md 由来）を参照。
+
+**このリポジトリは共通ガイド [`CLAUDE_base.md`](./CLAUDE_base.md) の canonical（唯一の一次ソース）も兼ねる**。
+kun シリーズ共通の方針（Swift Package 構成・ローカライズ・アップデート・kunkit 連携・リリース・ブランチ運用）は
+`CLAUDE_base.md` にまとまっており、規約を変えるときはここを編集する。各アプリの `CLAUDE.md` は固有事項のみを持ち、
+共通方針は本ファイルを参照する（既存アプリは兄弟ディレクトリの `../CLAUDE_base.md`＝本ファイルへの symlink 経由）。
 
 ## 使い方
 
