@@ -20,21 +20,26 @@ kun シリーズ（clipkun / gitkun / keykun / pointerkun / snapperkun / whisper
 - `.app` 化は `Scripts/bundle.sh`（`swift build` → バンドル組み立て → 署名）。Xcode プロジェクトは持たない。
 - リリースはタグ起点の GitHub Actions（詳細はチェックリスト 10）。
 
-## 新規アプリの始め方（スキャフォールド）
+## 新規アプリの始め方（テンプレートから作る）
 
-ゼロから書かず、**参照実装 = clipkun** から共通部をコピーして置換するのが最短。
-1. リポジトリ作成（public、命名は `<name>kun`。kuntraykun の集約対象になる条件でもある）。
-2. clipkun から以下をコピーし、アプリ名 / bundle ID（`com.mtkg.<name>kun`）を置換する:
-   - `Scripts/bundle.sh`（LOCAL=1 モード込み）/ `.github/workflows/release.yml` / `Makefile`（release-tag）
-   - `Resources/Info.plist`（LSUIElement / CFBundleLocalizations）と `Resources/{en,ja}.lproj/Localizable.strings`
-   - `Sources/<Name>/`: `main.swift`（accessory 起動・多重起動防止）/ `Localization.swift`（`L`）/
-     `UpdateService.swift`・`SelfUpdater.swift`（更新チェックは KunUpdateKit 利用の形）/
-     `SettingsWindowController.swift` / `StatusBarController.swift`（バッジ・kunkit 配線込み）
-   - `Sources/<Name>Core/`: `Settings.swift`・`SettingsStore.swift`・`VersionComparator.swift`（ReleaseInfo 込み）
-3. `Package.swift`: kunkit 依存（`KunIntegrationBridge` / `KunUpdateKit` プロダクト）＋ `defaultLocalization: "en"`。
-   **`Package.resolved` はコミットして追跡する**（リリースの再現性のため。新規はこれを標準とする）。
-4. Secrets 登録（チェックリスト 1）→ `LOCAL=1 bash Scripts/bundle.sh debug` で起動確認 →
-   固有機能を Core の TDD から実装開始（「開発の進め方」参照）。
+**テンプレートリポジトリ [kun-template](https://github.com/m-tkg/kun-template)** から作る（ゼロから書かない）。
+ビルド可能な最小骨格（メニューバー常駐・多重起動防止・日英ローカライズ・設定ダイアログ（一般タブ）・
+自動起動・アップデート（KunUpdateKit）・kunkit 連携・更新バッジ・bundle.sh・release.yml・Makefile・
+CLAUDE.md 雛形）が入っている。
+
+```sh
+gh repo create m-tkg/<name>kun --template m-tkg/kun-template --public --clone
+cd <name>kun
+bash Scripts/rename.sh <Name>kun   # プレースホルダ Newkun をアプリ名へ一括置換（kun 末尾必須）
+swift test && LOCAL=1 bash Scripts/bundle.sh debug   # 起動確認
+```
+
+- 命名は必ず `<name>kun`（kuntraykun の集約対象になる条件。bundle ID は `com.mtkg.<name>kun` に自動設定）。
+- Secrets 登録（チェックリスト 1）を済ませてから初回リリースする。
+- `Package.resolved` はコミットして追跡する（リリースの再現性のため。テンプレートも追跡済み）。
+- あとは CLAUDE.md 末尾の「固有事項」を埋め、固有機能を Core の TDD から実装する（「開発の進め方」参照）。
+- テンプレートに無い実装例が必要なとき（動的メニュー・ホットキー・イベントタップ等）は
+  既存アプリを参照する: 動的メニュー = gitkun、ホットキー/ポップアップ = clipkun、イベントタップ = keykun。
 
 ---
 
