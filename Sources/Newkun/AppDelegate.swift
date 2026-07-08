@@ -1,7 +1,9 @@
 import AppKit
 import OSLog
 import NewkunCore
+import KunAppKit
 import KunIntegrationBridge
+import KunSupport
 import KunUpdateKit
 
 private let log = Logger(subsystem: "com.mtkg.newkun", category: "app")
@@ -10,7 +12,8 @@ private let log = Logger(subsystem: "com.mtkg.newkun", category: "app")
 /// アップデート・kuntraykun 連携の配線を担う。
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let store = SettingsStore(url: SettingsStore.defaultURL())
+    private let store = KunSettingsStore<Settings>(
+        url: KunSettingsStore<Settings>.defaultURL(appFolderName: "Newkun"), defaultValue: .default)
 
     private var settings = Settings.default
 
@@ -21,7 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // アップデート関連。
     private let updateService = UpdateService()
-    private lazy var selfUpdater = SelfUpdater(service: updateService)
+    private let selfUpdater = SelfUpdater(appName: "Newkun")
     private var availableRelease: ReleaseInfo?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
