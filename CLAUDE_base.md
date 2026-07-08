@@ -14,12 +14,18 @@ kun シリーズ（clipkun / gitkun / keykun / pointerkun / snapperkun / whisper
   - `<Name>Core`（ライブラリ / テスト対象）: AppKit/Carbon/AX/CGEventTap に依存しないロジックとモデル。
     判定ロジックは時刻などを注入する純粋関数/状態機械にして **TDD（テスト先行）** で実装する。
   - `<Name>`（実行ファイル）: AppKit/SwiftUI/各種 OS 連携と UI。
-- **共有ライブラリ [kunkit](https://github.com/m-tkg/kunkit) に標準で依存する**（SPM、`from: "1.1.0"`）。
-  kuntraykun 連携（`KunIntegrationBridge`）と GitHub Releases の更新チェック（`KunUpdateKit`）は
-  自前実装せず kunkit を使う（チェックリスト 4 と「Kuntraykun 連携」章を参照）。
+- **共有ライブラリ [kunkit](https://github.com/m-tkg/kunkit) に標準で依存する**（SPM、`from: "1.3.0"` 以上）。
+  以下の共通機能は**自前実装せず kunkit を使う**（アプリ名・文言・repo は注入する）:
+  - `KunIntegrationBridge`（AppKit）: kuntraykun 連携（Bridge / IconExport / MenuExport）
+  - `KunUpdateKit`（Foundation）: 更新チェック（`GitHubReleaseFetcher` / `ReleaseInfo` / `VersionComparator` /
+    `KunUpdateSchedule` / `ReleaseDownloader`）
+  - `KunSupport`（Foundation）: `BundleIdentity`（基底 bundleID・isLocalBuild）/ `ProcessRunner` / `KunSettingsStore`
+  - `KunAppKit`（AppKit）: `KunAppLaunch`（多重起動防止）/ `LoginItemController` / `SelfUpdater`
+  - 各機能の使い方はチェックリスト 4〜6 と「Kuntraykun 連携」章を参照。
 - **メニューバー常駐**（Dock アイコンなし）。`Info.plist` に `LSUIElement = true`、
   `main.swift` で `NSApplication` を `.accessory` 起動（`MainActor.assumeIsolated`）。
-- **多重起動防止**: 起動時に同じ bundle ID の他インスタンスがあれば、それを前面化して自分は `exit(0)`。
+- **多重起動防止**: `main.swift` の冒頭で kunkit の `KunAppKit.KunAppLaunch.terminateIfAlreadyRunning()` を呼ぶ
+  （同じ bundle ID の他インスタンスがあれば前面化して自分は `exit(0)`）。
 - `.app` 化は `Scripts/bundle.sh`（`swift build` → バンドル組み立て → 署名）。Xcode プロジェクトは持たない。
 - リリースはタグ起点の GitHub Actions（詳細はチェックリスト 10）。
 
@@ -93,14 +99,17 @@ GitHub Releases から最新版を取得して自己更新する。
   `GitHubReleaseFetcher` は **ETag 条件付きリクエスト**で、変更が無ければ 304（GitHub 未認証レート制限
   **60回/時** を消費しない）。kun シリーズ全アプリが同一 IP から毎時チェックしても 403 にならない。
   レート制限時は `RateLimitedError`（リセット時刻付き文言）が投げられ、そのままダイアログに出せる。
-- `Core`: `ReleaseInfo`（`/releases/latest` の Decodable）と `VersionComparator`（タグの数値比較・純粋・テスト）。
-- `App`: `UpdateService`（取得＝上記 KunUpdateKit、zip DL は URLSession 直）、
-  `SelfUpdater`（zip を `ditto` 展開 → bundle ID 検証 → 旧プロセス終了待ち→入替の切り離しスクリプト→再起動）。
+- **`ReleaseInfo` / `VersionComparator` は kunkit の `KunUpdateKit`**（各アプリの Core には持たない）。
+- **自己更新は kunkit の `KunAppKit.SelfUpdater(appName:)`**（zip DL＝`ReleaseDownloader` → `ditto` 展開 →
+  基底 bundle ID 検証 → 旧プロセス終了待ち→入替スクリプト→再起動、まで内蔵）。アプリは
+  `UpdateService.fetchLatestRelease()`（取得）と `selfUpdater.performUpdate(to:)`（実行）を配線するだけ。
 - メニューに「アップデートを確認…」を置き、起動時にサイレントチェック。新版があればメニュー文言を
   「アップデート v… をインストール…」に変える。
-- 自己更新の bundle ID 検証は**基底ID（`.local` を除去）で比較**し、ローカルビルドからも本番へ更新できるようにする。
+- 自己更新の bundle ID 検証は kunkit の `SelfUpdater` が**基底ID（`.local` を除去、`BundleIdentity`）で比較**し、
+  ローカルビルドからも本番へ更新できる。
 - **定期監視＋スリープ復帰チェック**: 起動時1回だけでなく、`Timer.scheduledTimer(withTimeInterval:repeats:)` で
-  1時間ごとにサイレントチェックする（ETag 化により消費はほぼゼロ。`timer.tolerance` を間隔の 10% ほど付けて
+  **kunkit の共通間隔 `KunUpdateSchedule.checkInterval`（6時間）**ごとにサイレントチェックする
+  （ETag 化により消費はほぼゼロ。`timer.tolerance` に `KunUpdateSchedule.checkIntervalTolerance` を付けて
   省電力のためコアレッシングを許可）。`Timer` はスリープ中に発火しないため、
   `NSWorkspace.didWakeNotification` を購読し**復帰時にも即チェック**する（ノート PC で「閉じている間に新版」に対応）。
   タイマーのコールバックはメインスレッドで `MainActor.assumeIsolated` を使って `@MainActor` のチェック処理を呼ぶ。
@@ -119,9 +128,9 @@ GitHub Releases から最新版を取得して自己更新する。
     バッジも見えない（集約先へのバッジ伝搬は別途プロトコル拡張が必要）。
 
 ### 5. 自動起動（ログイン項目）機能を入れる
-- `LoginItemController` で `SMAppService.mainApp`（macOS 13+）を register/unregister。
+- **kunkit の `KunAppKit.LoginItemController(requiresApprovalMessage:)` を使う**（自前実装しない）。
+  `SMAppService.mainApp`（macOS 13+）の register/unregister を内包する。要承認時の案内文は注入する。
 - **状態はシステム側が source of truth**。`Settings`/JSON には保存しない。表示時に `refresh()` で同期する。
-- `.requiresApproval`（システム設定でログイン項目が無効）時は案内文を出す。
 - トグルは設定の Apply/Cancel とは独立に**即時反映**する。
 
 ### 6. 設定は「設定」メニュー/ダイアログに集約する
@@ -131,8 +140,9 @@ GitHub Releases から最新版を取得して自己更新する。
   「一般」タブ（自動起動・バージョン等）は**左端**に置く。
 - **設定ダイアログ表示中は Dock アイコンを出す**。`SettingsWindowController` が表示時に
   `NSApp.setActivationPolicy(.regular)`、クローズ時に `.accessory` へ戻す。
-- 設定の永続化は `Core` の `Settings`（機能ごとにサブ構造体）＋ `SettingsStore`（JSON、読込失敗で既定にフォールバック）。
-  Codable は `decodeIfPresent ?? 既定値` で欠損キーを補完し前方/後方互換にする。
+- 設定モデルは `Core` の `Settings`（機能ごとにサブ構造体）。Codable は `decodeIfPresent ?? 既定値` で
+  欠損キーを補完し前方/後方互換にする。**永続化は kunkit の `KunSupport.KunSettingsStore<Settings>`**
+  （`appFolderName` と既定値を注入、JSON、読込失敗で既定値フォールバック。自前の SettingsStore は書かない）。
 - SwiftUI を import するファイルでは `Settings`/`Binding` が SwiftUI と名前衝突するため
   `<Name>Core.Settings` / `@SwiftUI.Binding` と明示する。
 
