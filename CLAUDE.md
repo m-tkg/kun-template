@@ -194,6 +194,14 @@ release-tag:
   すべて確認してからタグを作成・push する。1つでも満たさなければ `exit 1` して中断する。
 - リリース手順: (1) `Info.plist` の `CFBundleShortVersionString` を上げる PR を作成しマージする
   (2) `main` を最新化してから `make release-tag` を実行する。
+- **ベータ（pre-release）**: `make beta-tag` で `v<version>-beta.<N>`（N は既存ベータ +1 で自動採番）を切る。
+  `Info.plist` のバージョンは数値のまま（ベータはタグだけで切る）。ワークフローは押されたタグ名を採用し、
+  **`-` を含むタグを `gh release create --prerelease` で GitHub pre-release として公開**する。
+  GitHub の `/releases/latest` は pre-release を除外するため、**通常の更新チェック（kunkit の
+  `GitHubReleaseFetcher`）はベータを自動的に無視する**（アプリ／kunkit のコード変更は不要）。
+  ベータ検証者は Releases ページから手動で zip を入れる。
+  - `release.yml` の `Resolve version` はタグ push 時 `github.ref_name` を採用し、`-` の有無で
+    `prerelease` 出力を決める。非タグ実行（`workflow_dispatch`）は従来どおり Info.plist から stable タグを導出する。
 - プロジェクトが `Info.plist` を直接持たず Xcode の `project.pbxproj`（`MARKETING_VERSION`）で
   バージョン管理している場合は、`VERSION`/`TAG` の取得部分だけ `grep`/`sed` で `MARKETING_VERSION` を
   読む形に差し替える（他の安全チェック部分は共通）。
