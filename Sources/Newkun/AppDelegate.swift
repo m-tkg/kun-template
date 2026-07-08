@@ -2,6 +2,7 @@ import AppKit
 import OSLog
 import NewkunCore
 import KunIntegrationBridge
+import KunUpdateKit
 
 private let log = Logger(subsystem: "com.mtkg.newkun", category: "app")
 
@@ -75,16 +76,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - アップデート
 
     /// 定期サイレントチェック＋スリープ復帰チェックを開始する。
-    /// 間隔は未認証 GitHub API のレート制限（60回/時）に十分余裕を持って1時間
-    /// （取得は kunkit の ETag 条件付きリクエストのため、変更が無ければ消費もしない）。
+    /// 間隔と tolerance は kun シリーズ共通の `KunUpdateSchedule`（kunkit）を参照する
+    /// （取得は kunkit の ETag 条件付きリクエストのため、変更が無ければレート制限も消費しない）。
     /// `Timer` はスリープ中に発火しないため、`didWakeNotification` で復帰時にも即チェックする。
     private func startUpdateTimer() {
-        let timer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
+        let timer = Timer.scheduledTimer(
+            withTimeInterval: KunUpdateSchedule.checkInterval, repeats: true
+        ) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.startUpdateCheck(interactive: false)
             }
         }
-        timer.tolerance = 360 // 省電力のためコアレッシングを許可（間隔の約10%）。
+        timer.tolerance = KunUpdateSchedule.checkIntervalTolerance
         updateCheckTimer = timer
 
         NSWorkspace.shared.notificationCenter.addObserver(
