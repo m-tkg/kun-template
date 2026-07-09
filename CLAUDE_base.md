@@ -6,7 +6,7 @@ kun シリーズ（clipkun / gitkun / keykun / pointerkun / snapperkun / whisper
 > **このファイルが共通ガイドの canonical（唯一の一次ソース）**。[kun-template](https://github.com/m-tkg/kun-template)
 > リポジトリで版管理される。共通方針を変えるときはここを編集する。各 kun アプリの `CLAUDE.md` は
 > 固有事項のみを記し、共通方針は本ファイルを参照する（新規アプリはテンプレートに同梱の本ファイルを引き継ぐ。
-> 既存アプリは兄弟ディレクトリの `../CLAUDE_base.md`＝本ファイルへの symlink を参照する）。
+> 既存アプリは兄弟ディレクトリに clone した本リポジトリの `../kun-template/CLAUDE_base.md` を参照する）。
 
 ## 基本構成
 
